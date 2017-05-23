@@ -4,8 +4,10 @@ package netlink
 
 import (
 	"bytes"
+	"math/rand"
 	"net"
 	"os"
+	"reflect"
 	"syscall"
 	"testing"
 	"time"
@@ -145,6 +147,21 @@ func testLinkAddDel(t *testing.T, link Link) {
 		}
 	}
 
+	// Test that some attributes are set
+	lBase := link.Attrs()
+
+	if lBase.MTU > 0 && lBase.MTU != rBase.MTU {
+		t.Fatalf("expected MTU %d, actual %d", lBase.MTU, rBase.MTU)
+	}
+
+	if lBase.HardwareAddr != nil && !reflect.DeepEqual(lBase.HardwareAddr, rBase.HardwareAddr) {
+		t.Fatal("HardwareAddr set but not applied!")
+	}
+
+	if lBase.TxQLen >= 0 && lBase.TxQLen != rBase.TxQLen {
+		t.Fatalf("txQlen mismatch - expected %d got %d", lBase.TxQLen, rBase.TxQLen)
+	}
+
 	if err = LinkDel(link); err != nil {
 		t.Fatal(err)
 	}
@@ -223,7 +240,22 @@ func TestLinkAddDelDummy(t *testing.T) {
 	tearDown := setUpNetlinkTest(t)
 	defer tearDown()
 
-	testLinkAddDel(t, &Dummy{LinkAttrs{Name: "foo"}})
+	// Pick a random mac address
+	addr := make([]byte, 6)
+	rand.Seed(time.Now().UTC().UnixNano())
+	if _, err := rand.Read(addr); err != nil {
+		t.Error("failed to be random", err)
+	}
+
+	// force it to a private mac address
+	addr[0] = 0x12
+
+	testLinkAddDel(t, &Dummy{LinkAttrs{
+		Name:         "foo",
+		MTU:          1000,
+		HardwareAddr: net.HardwareAddr(addr),
+		TxQLen:       100,
+	}})
 }
 
 func TestLinkAddDelIfb(t *testing.T) {

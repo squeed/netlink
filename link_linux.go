@@ -686,7 +686,6 @@ func (h *Handle) LinkAdd(link Link) error {
 }
 
 func (h *Handle) linkModify(link Link, flags int) error {
-	// TODO: set mtu and hardware address
 	// TODO: support extra data for macvlan
 	base := link.Attrs()
 
@@ -770,6 +769,11 @@ func (h *Handle) linkModify(link Link, flags int) error {
 
 	nameData := nl.NewRtAttr(syscall.IFLA_IFNAME, nl.ZeroTerminated(base.Name))
 	req.AddData(nameData)
+
+	if base.HardwareAddr != nil {
+		data := nl.NewRtAttr(syscall.IFLA_ADDRESS, []byte(base.HardwareAddr))
+		req.AddData(data)
+	}
 
 	if base.MTU > 0 {
 		mtu := nl.NewRtAttr(syscall.IFLA_MTU, nl.Uint32Attr(uint32(base.MTU)))
